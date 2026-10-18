@@ -1,24 +1,28 @@
 // Plan de entrenamiento diario de 10 minutos: encadena los cuatro ejercicios.
-import { h, store } from './util.js';
-import { mountSchulte } from './schulte.js';
-import { mountFonetico, mountSangria, mountEscoba } from './exercises.js';
+import { h, store, openModal } from './util.js';
+import { mountSchulte, storedSchulteControls } from './schulte.js';
+import { mountFonetico, mountSangria, mountEscoba, storedControls } from './exercises.js';
 
 const STEPS = [
   {
     title: 'Tablas de Schulte', min: 2, focus: 'Calentamiento y expansión del campo visual.',
     mount: (el, done) => mountSchulte(el, { embedded: true, durationMs: 2 * 60000, onDone: done }),
+    controls: () => storedSchulteControls(),
   },
   {
     title: 'Lectura con bloqueo fonético', min: 3, focus: 'Desactivación de la subvocalización.',
     mount: (el, done) => mountFonetico(el, { embedded: true, minutes: 3, onDone: done }),
+    controls: () => storedControls('fonetico', { embedded: true }),
   },
   {
     title: 'Sangría visual y puntero', min: 3, focus: 'Integración de visión periférica y ritmo.',
     mount: (el, done) => mountSangria(el, { embedded: true, minutes: 3, onDone: done }),
+    controls: () => storedControls('sangria', { embedded: true }),
   },
   {
     title: 'Sobrevuelo a alta velocidad', min: 2, focus: 'Reajuste del límite de velocidad mental (1 s/línea).',
     mount: (el, done) => mountEscoba(el, { embedded: true, routine: true, onDone: done }),
+    controls: () => storedControls('escoba', { embedded: true, routine: true }),
   },
 ];
 
@@ -36,7 +40,7 @@ export function mountRutina(root) {
     h('strong', {}, s.title),
     h('span', { class: 'muted' }, s.focus))));
   const stage = h('div', { class: 'stage' });
-  const startBtn = h('button', { class: 'btn primary', onclick: () => go(0) }, 'Comenzar rutina');
+  const startBtn = h('button', { class: 'btn primary', onclick: configure }, 'Comenzar rutina');
   const skipBtn = h('button', { class: 'btn', hidden: true, onclick: () => go(idx + 1) }, 'Saltar paso →');
   const stopBtn = h('button', { class: 'btn', hidden: true, onclick: () => { go(-1); } }, 'Detener');
   const days = h('p', { class: 'muted' });
@@ -45,6 +49,14 @@ export function mountRutina(root) {
     const d = practicedDays();
     days.textContent = d.length ? `Días con rutina completada: ${d.length} (último: ${d.at(-1)})` : '';
   };
+
+  // Ajustes de todos los pasos antes de empezar; durante cada paso siguen disponibles en «Ajustes».
+  async function configure() {
+    const body = STEPS.map((s, i) => h('fieldset', {},
+      h('legend', {}, `${i + 1}. ${s.title}`),
+      h('div', { class: 'controls' }, s.controls())));
+    if (await openModal('Ajustes de la rutina', body, 'Comenzar')) go(0);
+  }
 
   function go(i) {
     destroyStep?.();

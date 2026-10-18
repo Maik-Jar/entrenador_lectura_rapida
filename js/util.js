@@ -60,6 +60,29 @@ export function intro(title, lead, steps, goal) {
   ].filter(Boolean);
 }
 
+// Ventana modal de confirmación. Resuelve true si se pulsa el botón principal.
+// Se cierra sola (como cancelada) si el usuario navega a otra vista.
+export function openModal(title, body, okText = 'Empezar') {
+  return new Promise(resolve => {
+    const dlg = h('dialog', { class: 'modal' },
+      h('form', { method: 'dialog' },
+        h('h2', {}, title),
+        h('div', { class: 'modal-body' }, body),
+        h('div', { class: 'toolbar modal-actions' },
+          h('button', { class: 'btn', value: 'cancel' }, 'Cancelar'),
+          h('button', { class: 'btn primary', value: 'ok', autofocus: true }, okText))));
+    const onNav = () => dlg.close();
+    window.addEventListener('hashchange', onNav);
+    dlg.addEventListener('close', () => {
+      window.removeEventListener('hashchange', onNav);
+      dlg.remove();
+      resolve(dlg.returnValue === 'ok');
+    });
+    document.body.append(dlg);
+    dlg.showModal();
+  });
+}
+
 // Cuenta regresiva pausable.
 export class Countdown {
   constructor(ms, onTick, onDone) {

@@ -1,5 +1,5 @@
 // Ejercicios de lectura con puntero: sangría visual, bloqueo fonético y sobrevuelo.
-import { h, store, fmtClock, intro, defaultWpl, Countdown, Metronome } from './util.js';
+import { h, store, fmtClock, intro, defaultWpl, openModal, Countdown, Metronome } from './util.js';
 import { Reader } from './reader.js';
 import { currentText } from './texto.js';
 
@@ -43,11 +43,15 @@ const CONTROLS = {
 
 const ppmOf = (s, secPerLine) => Math.round((s.wpl * 60) / secPerLine);
 
+const loadSettings = cfg => ({ ...cfg.defaults, ...store.get('cfg:' + cfg.id, {}) });
+// En la rutina la duración la fija el plan, así que no se ofrece.
+const controlKeys = cfg => cfg.controls.filter(k => !(cfg.embedded && k === 'minutes'));
+
 function mountReading(root, cfg) {
   const { embedded = false, onDone } = cfg;
-  const s = { ...cfg.defaults, ...store.get('cfg:' + cfg.id, {}) };
+  const s = loadSettings(cfg);
   const text = currentText();
-  let phase = 0, timer = null, state = 'idle';
+  let phase = 0, timer = null, state = 'idle', configuring = false;
 
   const status = h('span', { class: 'status' }, 'Listo para empezar');
   const clock = h('span', { class: 'clock' }, fmtClock(cfg.phases[0].ms(s)));
@@ -98,7 +102,8 @@ function mountReading(root, cfg) {
     });
   }
 
-  function toggle() {
+  async function toggle() {
+    if (configuring) return;
     if (state === 'running') {
       state = 'paused';
       timer.pause();
@@ -114,6 +119,14 @@ function mountReading(root, cfg) {
       metro?.start();
       btn.textContent = 'Pausar';
       return;
+    }
+    if (!embedded) {
+      // Ajustes antes de empezar, para no tener que tocarlos durante el ejercicio.
+      configuring = true;
+      const ok = await openModal(`Ajustes · ${cfg.title}`, h('div', { class: 'controls' }, buildControls()));
+      configuring = false;
+      settings.replaceChildren(...buildControls());
+      if (!ok) return;
     }
     if (state === 'done') reader.reset();
     phase = 0;
@@ -143,15 +156,14 @@ function mountReading(root, cfg) {
   };
   document.addEventListener('keydown', onKey);
 
-  const controls = cfg.controls
-    .filter(k => !(embedded && k === 'minutes'))
-    .map(k => CONTROLS[k](s, onChange));
+  const buildControls = () => controlKeys(cfg).map(k => CONTROLS[k](s, onChange));
+  const settings = h('div', { class: 'controls' }, buildControls());
 
   root.append(...[
     ...(embedded ? [] : intro(cfg.title, cfg.lead, cfg.steps, cfg.goal)),
-    h('details', { class: 'settings', open: !embedded },
+    h('details', { class: 'settings' },
       h('summary', {}, 'Ajustes'),
-      h('div', { class: 'controls' }, controls)),
+      settings),
     h('div', { class: 'toolbar' }, btn, status, clock),
     beatEl,
     readerBox,
@@ -171,8 +183,8 @@ function mountReading(root, cfg) {
   };
 }
 
-export function mountSangria(root, o = {}) {
-  return mountReading(root, {
+const DEFS = {
+  sangria: o => ({
     ...o,
     id: 'sangria',
     mode: 'chunks',
@@ -192,11 +204,9 @@ export function mountSangria(root, o = {}) {
       secPerLine: s => (s.wpl * 60) / s.ppm,
       label: s => `Lectura por bloques · ${s.ppm} PPM`,
     }],
-  });
-}
+  }),
 
-export function mountFonetico(root, o = {}) {
-  return mountReading(root, {
+  fonetico: o => ({
     ...o,
     id: 'fonetico',
     mode: 'line',
@@ -217,10 +227,12 @@ export function mountFonetico(root, o = {}) {
       secPerLine: s => (s.wpl * 60) / s.ppm,
       label: s => `Bloqueo fonético · ${s.ppm} PPM`,
     }],
-  });
-}
+  }),
 
-export function mountEscoba(root, o = {}) {
+  escoba: escobaDef,
+};
+
+function escobaDef(o) {
   const fase1 = {
     ms: () => 120000,
     secPerLine: s => s.p1,
@@ -231,7 +243,7 @@ export function mountEscoba(root, o = {}) {
     secPerLine: s => s.p2,
     label: s => `Fase 2 · ${s.p2} s/línea (≈${ppmOf(s, s.p2)} PPM) — nota la calma`,
   };
-  return mountReading(root, {
+  return {
     ...o,
     id: 'escoba',
     mode: 'line',
@@ -247,5 +259,17 @@ export function mountEscoba(root, o = {}) {
     defaults: { wpl: defaultWpl(), p1: 1, p2: 2 },
     controls: o.routine ? ['wpl', 'p1'] : ['wpl', 'p1', 'p2'],
     phases: o.routine ? [fase1] : [fase1, fase2],
-  });
+  };
+}
+
+export const mountSangria = (root, o = {}) => mountReading(root, DEFS.sangria(o));
+export const mountFonetico = (root, o = {}) => mountReading(root, DEFS.fonetico(o));
+export const mountEscoba = (root, o = {}) => mountReading(root, DEFS.escoba(o));
+
+// Controles que editan directamente los ajustes guardados de un ejercicio (para configurar
+// antes de montarlo, p. ej. desde la rutina).
+export function storedControls(id, o = {}) {
+  const cfg = DEFS[id](o);
+  const s = loadSettings(cfg);
+  return controlKeys(cfg).map(k => CONTROLS[k](s, () => store.set('cfg:' + id, s)));
 }

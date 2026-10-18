@@ -32,7 +32,8 @@ export class Reader {
       const ws = this.words.slice(s, s + wpl);
       const idx = this.lines.length;
       const el = h('div', { class: 'line', onclick: () => this.jump(idx) });
-      for (const g of mode === 'chunks' ? groupWords(ws, chunks) : [{ words: ws }]) {
+      // En modo línea cada palabra va en su span para poder justificar la línea.
+      for (const g of mode === 'chunks' ? groupWords(ws, chunks) : ws.map(w => ({ words: [w] }))) {
         el.append(h('span', { class: g.edge ? 'chunk edge' : 'chunk' }, g.words.join(' ')));
       }
       this.lines.push({ el, chunks: [...el.querySelectorAll('.chunk:not(.edge)')] });

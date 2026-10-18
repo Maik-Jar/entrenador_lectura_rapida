@@ -1,8 +1,30 @@
 // Tablas de Schulte: buscar los números en orden sin mover la vista del centro.
 import { h, store, fmtSecs, fmtClock, shuffle, intro, Countdown } from './util.js';
 
+const loadCfg = () => ({ size: 5, mode: 'clic', ...store.get('cfg:schulte', {}) });
+
+function settingsCtls(cfg, onChange) {
+  const sizeSel = h('select', {
+    onchange: e => { cfg.size = +e.target.value; store.set('cfg:schulte', cfg); onChange(); },
+  }, [3, 5, 7].map(n => h('option', { value: n }, `${n}×${n}`)));
+  sizeSel.value = cfg.size;
+
+  const modeSel = h('select', {
+    onchange: e => { cfg.mode = e.target.value; store.set('cfg:schulte', cfg); onChange(); },
+  }, h('option', { value: 'clic' }, 'Clic: toca cada número'), h('option', { value: 'foco' }, 'Foco: pulsa Espacio, sin mover la vista'));
+  modeSel.value = cfg.mode;
+
+  return [
+    h('label', { class: 'ctl' }, h('span', {}, 'Tamaño'), sizeSel),
+    h('label', { class: 'ctl' }, h('span', {}, 'Modo'), modeSel),
+  ];
+}
+
+// Controles que editan los ajustes guardados, para configurar antes de montar el ejercicio.
+export const storedSchulteControls = () => settingsCtls(loadCfg(), () => {});
+
 export function mountSchulte(root, { embedded = false, durationMs = 0, onDone } = {}) {
-  const cfg = { size: 5, mode: 'clic', ...store.get('cfg:schulte', {}) };
+  const cfg = loadCfg();
   let next = 1, errors = 0, t0 = 0, raf = 0, running = false, countdown = null, restartId = 0;
   const history = [];
 
@@ -113,16 +135,6 @@ export function mountSchulte(root, { embedded = false, durationMs = 0, onDone } 
     renderBest();
   }
 
-  const sizeSel = h('select', {
-    onchange: e => { cfg.size = +e.target.value; store.set('cfg:schulte', cfg); reset(); },
-  }, [3, 5, 7].map(n => h('option', { value: n }, `${n}×${n}`)));
-  sizeSel.value = cfg.size;
-
-  const modeSel = h('select', {
-    onchange: e => { cfg.mode = e.target.value; store.set('cfg:schulte', cfg); reset(); },
-  }, h('option', { value: 'clic' }, 'Clic: toca cada número'), h('option', { value: 'foco' }, 'Foco: pulsa Espacio, sin mover la vista'));
-  modeSel.value = cfg.mode;
-
   const onKey = e => {
     if (e.code !== 'Space' || e.target.closest('input, select, textarea')) return;
     e.preventDefault();
@@ -144,9 +156,7 @@ export function mountSchulte(root, { embedded = false, durationMs = 0, onDone } 
       ],
       'Completar una tabla 5×5 en menos de 25 segundos sin desplazar los ojos del foco central.',
     )),
-    h('div', { class: 'controls' },
-      h('label', { class: 'ctl' }, h('span', {}, 'Tamaño'), sizeSel),
-      h('label', { class: 'ctl' }, h('span', {}, 'Modo'), modeSel)),
+    h('div', { class: 'controls' }, settingsCtls(cfg, reset)),
     h('div', { class: 'toolbar' }, startBtn, h('span', {}, 'Busca: ', target), time, embedded && clock),
     grid,
     h('div', { class: 'toolbar center' }, foundBtn),
