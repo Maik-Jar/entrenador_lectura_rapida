@@ -7,6 +7,8 @@ Web app estática (HTML + CSS + JavaScript puro, sin dependencias ni build) basa
 
 - **Tablas de Schulte** (3×3, 5×5, 7×7): modo clic o modo foco (Espacio), cronómetro y récords.
 - **Sangría visual**: lectura por bloques con 2-3 fijaciones por línea y márgenes atenuados.
+- **Reducción de fijaciones**: reparte cada línea en bloques y baja nivel a nivel de varias
+  fijaciones por línea a 2 o 3, con duración fija por fijación.
 - **Bloqueo fonético**: puntero a ritmo constante + metrónomo "un-dos-tres" / "A-B-C".
 - **Sobrevuelo (escoba)**: 2 min a 1 s/línea y luego 1 min a 2 s/línea.
 - **Rutina diaria de 10 minutos** que encadena los cuatro ejercicios.

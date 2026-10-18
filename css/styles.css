@@ -8,6 +8,7 @@
   --accent-text: #ffffff;
   --accent-soft: #e4ecfb;
   --ok: #1f9d55;
+  --pacer: #1f9d55;
   --bad: #d64545;
   --focus: #e0452b;
   --radius: 12px;
@@ -23,6 +24,7 @@
     --accent: #6b9cff;
     --accent-text: #0d1220;
     --accent-soft: #1f2b45;
+    --pacer: #3ecf7a;
   }
 }
 
@@ -163,12 +165,29 @@ input[type="range"] { accent-color: var(--accent); width: 100%; }
   bottom: 2px;
   height: 3px;
   border-radius: 2px;
-  background: var(--accent);
+  background: var(--pacer);
   transform: scaleX(0);
   transform-origin: left;
 }
-.mode-chunks .chunk { padding: 0 .2em; border-radius: 4px; }
-.mode-chunks .chunk.on { background: var(--accent); color: var(--accent-text); }
+.mode-chunks .chunk, .mode-fix .chunk > span { padding: 0 .2em; border-radius: 4px; }
+.mode-chunks .chunk.on, .mode-fix .chunk.on > span { background: var(--accent); color: var(--accent-text); }
+/* En reducción de fijaciones las palabras se justifican como texto normal; el punto marca
+   dónde debe caer la vista en cada bloque. */
+.mode-fix .chunk { display: contents; }
+.mode-fix .fixpt { position: relative; }
+.mode-fix .line.active .fixpt::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: .5;
+}
+.mode-fix .line.active .chunk.on .fixpt::before { background: var(--focus); opacity: 1; }
 .with-margins .chunk.edge { color: var(--muted); opacity: .55; }
 
 .beat { display: flex; justify-content: center; gap: 18px; margin: 8px 0 12px; font-weight: 800; font-size: 1.4rem; letter-spacing: .05em; }

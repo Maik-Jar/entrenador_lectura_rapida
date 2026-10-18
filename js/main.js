@@ -1,13 +1,14 @@
 // Enrutador por hash (#/schulte, #/rutina…): funciona en GitHub Pages sin configuración extra.
 import { h } from './util.js';
 import { mountSchulte } from './schulte.js';
-import { mountSangria, mountFonetico, mountEscoba } from './exercises.js';
+import { mountSangria, mountFijaciones, mountFonetico, mountEscoba } from './exercises.js';
 import { mountRutina, practicedDays } from './rutina.js';
 import { mountTexto, currentText } from './texto.js';
 
 const EXERCISES = [
   { id: 'schulte', tag: 'Visión periférica', title: 'Tablas de Schulte', desc: 'Encuentra los números en orden sin mover la vista del centro.' },
   { id: 'sangria', tag: 'Visión periférica', title: 'Sangría visual', desc: 'Lee por bloques, ignorando los márgenes: 2-3 fijaciones por línea.' },
+  { id: 'fijaciones', tag: 'Visión periférica', title: 'Reducción de fijaciones', desc: 'Lee cada línea con menos paradas: de una por palabra a solo 2 o 3.' },
   { id: 'fonetico', tag: 'Subvocalización', title: 'Bloqueo fonético', desc: 'Lee al ritmo de un metrónomo repitiendo "un-dos-tres".' },
   { id: 'escoba', tag: 'Subvocalización', title: 'Sobrevuelo (escoba)', desc: '2 minutos a 1 s/línea y luego baja a ritmo de calma.' },
 ];
@@ -39,6 +40,7 @@ const ROUTES = {
   rutina: { title: 'Rutina diaria', mount: mountRutina },
   schulte: { title: 'Tablas de Schulte', mount: mountSchulte },
   sangria: { title: 'Sangría visual', mount: mountSangria },
+  fijaciones: { title: 'Reducción de fijaciones', mount: mountFijaciones },
   fonetico: { title: 'Bloqueo fonético', mount: mountFonetico },
   escoba: { title: 'Sobrevuelo', mount: mountEscoba },
   texto: { title: 'Texto de práctica', mount: mountTexto },

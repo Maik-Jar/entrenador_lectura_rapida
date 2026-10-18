@@ -1,16 +1,30 @@
 // Lector con puntero: divide el texto en líneas de N palabras y avanza a un ritmo fijo.
 // mode 'line'   → una barra recorre la línea activa (técnica de la escoba / ritmo constante).
 // mode 'chunks' → resalta 2-3 bloques por línea, sin fijarse en la primera ni la última palabra.
+// mode 'fix'    → reparte la línea entera en N fijaciones (reducción de fijaciones).
 import { h } from './util.js';
+
+// Divide en n bloques de tamaño lo más parecido posible (7 palabras en 3 → 3, 2, 2).
+function split(words, n) {
+  n = Math.max(1, Math.min(n, words.length));
+  const groups = [];
+  for (let k = 0, i = 0; k < n; k++) {
+    const size = Math.ceil((words.length - i) / (n - k));
+    groups.push({ words: words.slice(i, i += size) });
+  }
+  return groups;
+}
 
 function groupWords(words, n) {
   if (words.length < 4) return [{ words }];
-  const mid = words.slice(1, -1);
-  const size = Math.ceil(mid.length / n);
-  const groups = [];
-  for (let i = 0; i < mid.length; i += size) groups.push({ words: mid.slice(i, i + size) });
-  return [{ words: [words[0]], edge: true }, ...groups, { words: [words.at(-1)], edge: true }];
+  return [{ words: [words[0]], edge: true }, ...split(words.slice(1, -1), n), { words: [words.at(-1)], edge: true }];
 }
+
+const GROUPERS = {
+  chunks: groupWords,
+  fix: split,
+  line: ws => ws.map(w => ({ words: [w] })),
+};
 
 export class Reader {
   constructor(container, text, opts = {}) {
@@ -33,8 +47,11 @@ export class Reader {
       const idx = this.lines.length;
       const el = h('div', { class: 'line', onclick: () => this.jump(idx) });
       // En modo línea cada palabra va en su span para poder justificar la línea.
-      for (const g of mode === 'chunks' ? groupWords(ws, chunks) : ws.map(w => ({ words: [w] }))) {
-        el.append(h('span', { class: g.edge ? 'chunk edge' : 'chunk' }, g.words.join(' ')));
+      for (const g of GROUPERS[mode](ws, chunks)) {
+        el.append(mode === 'fix'
+          // Cada palabra en su span para justificar la línea; el punto de fijación va en la central.
+          ? h('span', { class: 'chunk' }, g.words.map((w, k) => h('span', { class: k === (g.words.length - 1) >> 1 ? 'fixpt' : '' }, w)))
+          : h('span', { class: g.edge ? 'chunk edge' : 'chunk' }, g.words.join(' ')));
       }
       this.lines.push({ el, chunks: [...el.querySelectorAll('.chunk:not(.edge)')] });
       this.box.append(el);
@@ -86,8 +103,13 @@ export class Reader {
     const line = this.lines[this.i];
     if (!line) return null;
     line.el.classList.add('active');
-    const top = line.el.offsetTop - (this.box.clientHeight - line.el.offsetHeight) / 2;
-    this.box.scrollTo({ top, behavior: 'smooth' });
+    // Como en un libro, la vista baja línea a línea: solo se desplaza el texto cuando la
+    // línea activa sale del área visible, y entonces queda arriba (con una línea de contexto).
+    const { offsetTop: top, offsetHeight: hgt } = line.el;
+    const { scrollTop, clientHeight } = this.box;
+    if (top < scrollTop || top + hgt > scrollTop + clientHeight) {
+      this.box.scrollTo({ top: Math.max(0, top - hgt), behavior: 'smooth' });
+    }
     return line;
   }
 
@@ -98,7 +120,7 @@ export class Reader {
     const dur = this.opts.secPerLine * 1000;
     const next = () => { this.i++; this.step(); };
 
-    if (this.opts.mode === 'chunks' && line.chunks.length) {
+    if (this.opts.mode !== 'line' && line.chunks.length) {
       const per = dur / line.chunks.length;
       let k = 0;
       const tick = () => {

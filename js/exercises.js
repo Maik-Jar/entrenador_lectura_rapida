@@ -1,4 +1,4 @@
-// Ejercicios de lectura con puntero: sangría visual, bloqueo fonético y sobrevuelo.
+// Ejercicios de lectura con puntero: sangría visual, reducción de fijaciones, bloqueo fonético y sobrevuelo.
 import { h, store, fmtClock, intro, defaultWpl, openModal, Countdown, Metronome } from './util.js';
 import { Reader } from './reader.js';
 import { currentText } from './texto.js';
@@ -39,6 +39,9 @@ const CONTROLS = {
   sound: (s, on) => checkCtl(s, 'sound', 'Sonido de metrónomo', on),
   p1: (s, on) => rangeCtl(s, 'p1', 'Fase 1 (sobrevuelo)', 0.5, 3, 0.25, v => `${v} s/línea`, on),
   p2: (s, on) => rangeCtl(s, 'p2', 'Fase 2 (calma)', 0.5, 4, 0.25, v => `${v} s/línea`, on),
+  fixFrom: (s, on) => rangeCtl(s, 'fixFrom', 'Fijaciones al empezar', 3, 10, 1, v => v, on),
+  fixTo: (s, on) => selectCtl(s, 'fixTo', 'Fijaciones objetivo', [[2, '2 fijaciones'], [3, '3 fijaciones']], on),
+  fixMs: (s, on) => rangeCtl(s, 'fixMs', 'Duración de cada fijación', 150, 600, 25, v => `${v} ms`, on),
 };
 
 const ppmOf = (s, secPerLine) => Math.round((s.wpl * 60) / secPerLine);
@@ -51,15 +54,18 @@ function mountReading(root, cfg) {
   const { embedded = false, onDone } = cfg;
   const s = loadSettings(cfg);
   const text = currentText();
+  // Las fases pueden depender de los ajustes (p. ej. cuántos niveles de fijaciones hay).
+  const phases = () => (typeof cfg.phases === 'function' ? cfg.phases(s) : cfg.phases);
+  const cur = () => { const ps = phases(); return ps[Math.min(phase, ps.length - 1)]; };
   let phase = 0, timer = null, state = 'idle', configuring = false;
 
   const status = h('span', { class: 'status' }, 'Listo para empezar');
-  const clock = h('span', { class: 'clock' }, fmtClock(cfg.phases[0].ms(s)));
+  const clock = h('span', { class: 'clock' }, fmtClock(phases()[0].ms(s)));
   const btn = h('button', { class: 'btn primary', onclick: toggle }, 'Iniciar');
   const readerBox = h('div');
   const reader = new Reader(readerBox, text.body, {
-    mode: cfg.mode, wordsPerLine: s.wpl, chunks: s.chunks, margins: s.margins,
-    secPerLine: cfg.phases[0].secPerLine(s),
+    mode: cfg.mode, wordsPerLine: s.wpl, chunks: phases()[0].chunks?.(s) ?? s.chunks, margins: s.margins,
+    secPerLine: phases()[0].secPerLine(s),
   });
 
   let metro = null, beatEl = null;
@@ -75,27 +81,33 @@ function mountReading(root, cfg) {
     beatEl.replaceChildren(...SYLLABLES[s.syl].map((t, i) => h('span', { class: i === n % 3 ? 'on' : '' }, t)));
   }
 
-  const speed = () => cfg.phases[Math.min(phase, cfg.phases.length - 1)].secPerLine(s);
+  // Aplica al lector la velocidad (y, si la fase lo define, las fijaciones) de la fase actual.
+  function applyPhase() {
+    const p = cur();
+    const chunks = p.chunks?.(s);
+    reader.set(chunks && chunks !== reader.opts.chunks ? { secPerLine: p.secPerLine(s), chunks } : { secPerLine: p.secPerLine(s) });
+  }
 
   function onChange(key) {
     store.set('cfg:' + cfg.id, s);
-    if (key === 'wpl') reader.set({ wordsPerLine: s.wpl, secPerLine: speed() });
+    if (key === 'wpl') { reader.set({ wordsPerLine: s.wpl }); applyPhase(); }
     else if (key === 'chunks' || key === 'margins') reader.set({ [key]: s[key] });
     else if (key === 'bpm') metro?.setBpm(s.bpm);
     else if (key === 'sound') { if (metro) metro.sound = s.sound; }
     else if (key === 'syl') renderBeat(-1);
-    else if (key === 'minutes') { if (state === 'idle' || state === 'done') clock.textContent = fmtClock(cfg.phases[0].ms(s)); }
-    else reader.set({ secPerLine: speed() });
-    if (state === 'running' || state === 'paused') status.textContent = cfg.phases[phase].label(s);
+    else if (key === 'minutes') { if (state === 'idle' || state === 'done') clock.textContent = fmtClock(phases()[0].ms(s)); }
+    else applyPhase();
+    if (state === 'running' || state === 'paused') status.textContent = cur().label(s);
+    else clock.textContent = fmtClock(phases()[0].ms(s));
   }
 
   function startPhase() {
-    const p = cfg.phases[phase];
-    reader.set({ secPerLine: p.secPerLine(s) });
+    const p = cur();
+    applyPhase();
     status.textContent = p.label(s);
     timer = new Countdown(p.ms(s), left => { clock.textContent = fmtClock(left); }, () => {
       phase++;
-      if (phase < cfg.phases.length) {
+      if (phase < phases().length) {
         startPhase();
         timer.start();
       } else finish();
@@ -229,8 +241,44 @@ const DEFS = {
     }],
   }),
 
+  fijaciones: fijacionesDef,
   escoba: escobaDef,
 };
+
+// Niveles de fijaciones por línea, de fixFrom a fixTo; cada fijación dura lo mismo, así que
+// al hacer menos paradas por línea la lectura se acelera sola.
+function fijacionesDef(o) {
+  const levels = s => {
+    const from = Math.max(s.fixTo, Math.min(s.fixFrom, s.wpl));
+    return Array.from({ length: from - s.fixTo + 1 }, (_, k) => from - k);
+  };
+  const secPerLine = n => s => (n * s.fixMs) / 1000;
+  return {
+    ...o,
+    id: 'fijaciones',
+    mode: 'fix',
+    title: 'Reducción de fijaciones',
+    lead: 'Al leer, el ojo no se desliza: salta y se detiene (fija) casi en cada palabra. En una línea de 7 palabras suele hacer 7 paradas. Este ejercicio te entrena para captar varias palabras en cada parada hasta leer la línea con solo 2 o 3.',
+    steps: [
+      'Cada línea está dividida en bloques. El punto rojo marca dónde fijar la vista: el centro del bloque resaltado.',
+      'Salta de bloque en bloque sin detenerte en las palabras sueltas; deja que la visión periférica capte las de los lados.',
+      'Empiezas con varias fijaciones por línea y, conforme avanza el tiempo, el número baja nivel a nivel hasta 2 o 3.',
+      'Cada fijación dura lo mismo, por lo que menos paradas significan más velocidad. No regreses a releer.',
+    ],
+    goal: 'Pasar de una fijación por palabra a 2 o 3 por línea.',
+    defaults: { wpl: 7, fixFrom: 5, fixTo: 3, fixMs: 300, minutes: 4 },
+    controls: ['wpl', 'fixFrom', 'fixTo', 'fixMs', 'minutes'],
+    phases: s => {
+      const ls = levels(s);
+      return ls.map((n, k) => ({
+        ms: s => ((o.minutes ?? s.minutes) * 60000) / ls.length,
+        chunks: () => n,
+        secPerLine: secPerLine(n),
+        label: s => `Nivel ${k + 1}/${ls.length} · ${n} fijaciones por línea (≈${ppmOf(s, secPerLine(n)(s))} PPM)`,
+      }));
+    },
+  };
+}
 
 function escobaDef(o) {
   const fase1 = {
@@ -265,6 +313,7 @@ function escobaDef(o) {
 export const mountSangria = (root, o = {}) => mountReading(root, DEFS.sangria(o));
 export const mountFonetico = (root, o = {}) => mountReading(root, DEFS.fonetico(o));
 export const mountEscoba = (root, o = {}) => mountReading(root, DEFS.escoba(o));
+export const mountFijaciones = (root, o = {}) => mountReading(root, DEFS.fijaciones(o));
 
 // Controles que editan directamente los ajustes guardados de un ejercicio (para configurar
 // antes de montarlo, p. ej. desde la rutina).
