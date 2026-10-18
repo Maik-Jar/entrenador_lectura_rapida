@@ -18,10 +18,10 @@ function mountHome(root) {
   root.append(
     h('section', { class: 'hero' },
       h('h1', {}, 'Entrena tu lectura rápida'),
-      h('p', { class: 'lead' }, 'Ejercicios de visión periférica y eliminación de la subvocalización. 10 minutos al día.')),
+      h('p', { class: 'lead' }, 'Ejercicios de visión periférica y eliminación de la subvocalización. 12 minutos al día.')),
     h('a', { href: '#/rutina', class: 'card featured' },
-      h('h2', {}, 'Rutina diaria · 10 min'),
-      h('p', {}, 'Schulte → bloqueo fonético → sangría visual → sobrevuelo, encadenados y cronometrados.'),
+      h('h2', {}, 'Rutina diaria · 12 min'),
+      h('p', {}, 'Schulte → bloqueo fonético → sangría visual → reducción de fijaciones → sobrevuelo, encadenados y cronometrados.'),
       days ? h('p', { class: 'small' }, `Llevas ${days} ${days === 1 ? 'día' : 'días'} de práctica.`) : null,
       h('span', { class: 'cta' }, 'Empezar →')),
     h('h2', { class: 'section-title' }, 'Ejercicios sueltos'),

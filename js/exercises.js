@@ -82,10 +82,13 @@ function mountReading(root, cfg) {
   }
 
   // Aplica al lector la velocidad (y, si la fase lo define, las fijaciones) de la fase actual.
-  function applyPhase() {
+  // Con queue=true el cambio entra al empezar la siguiente línea (paso de fase o nivel).
+  function applyPhase(queue = false) {
     const p = cur();
     const chunks = p.chunks?.(s);
-    reader.set(chunks && chunks !== reader.opts.chunks ? { secPerLine: p.secPerLine(s), chunks } : { secPerLine: p.secPerLine(s) });
+    const opts = chunks && chunks !== reader.opts.chunks ? { secPerLine: p.secPerLine(s), chunks } : { secPerLine: p.secPerLine(s) };
+    if (queue) reader.queue(opts);
+    else reader.set(opts);
   }
 
   function onChange(key) {
@@ -103,7 +106,7 @@ function mountReading(root, cfg) {
 
   function startPhase() {
     const p = cur();
-    applyPhase();
+    applyPhase(true);
     status.textContent = p.label(s);
     timer = new Countdown(p.ms(s), left => { clock.textContent = fmtClock(left); }, () => {
       phase++;

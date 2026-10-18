@@ -11,7 +11,7 @@ Web app estática (HTML + CSS + JavaScript puro, sin dependencias ni build) basa
   fijaciones por línea a 2 o 3, con duración fija por fijación.
 - **Bloqueo fonético**: puntero a ritmo constante + metrónomo "un-dos-tres" / "A-B-C".
 - **Sobrevuelo (escoba)**: 2 min a 1 s/línea y luego 1 min a 2 s/línea.
-- **Rutina diaria de 10 minutos** que encadena los cuatro ejercicios.
+- **Rutina diaria de 12 minutos** que encadena los cinco ejercicios.
 - Textos de práctica incluidos o tu propio texto pegado.
 
 No usa base de datos ni servidor: los ajustes, récords y el texto propio se guardan solo en el

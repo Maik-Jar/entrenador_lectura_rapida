@@ -4,13 +4,20 @@
 // mode 'fix'    → reparte la línea entera en N fijaciones (reducción de fijaciones).
 import { h } from './util.js';
 
-// Divide en n bloques de tamaño lo más parecido posible (7 palabras en 3 → 3, 2, 2).
+// Divide en n bloques de longitud (en letras) lo más parecida posible, para que todas las
+// fijaciones abarquen un tramo similar de la línea y el resaltado avance a ritmo parejo.
 function split(words, n) {
   n = Math.max(1, Math.min(n, words.length));
+  const lens = words.map(w => w.length + 1);
+  const total = lens.reduce((a, b) => a + b, 0);
   const groups = [];
-  for (let k = 0, i = 0; k < n; k++) {
-    const size = Math.ceil((words.length - i) / (n - k));
-    groups.push({ words: words.slice(i, i += size) });
+  for (let k = 0, i = 0, cum = 0; k < n; k++) {
+    const target = (total * (k + 1)) / n;
+    const maxEnd = words.length - (n - k - 1); // deja al menos una palabra por bloque restante
+    const start = i;
+    cum += lens[i++];
+    while (i < maxEnd && (k === n - 1 || Math.abs(cum + lens[i] - target) < Math.abs(cum - target))) cum += lens[i++];
+    groups.push({ words: words.slice(start, i) });
   }
   return groups;
 }
@@ -35,11 +42,13 @@ export class Reader {
     this.running = false;
     this.timer = null;
     this.anim = null;
+    this.pending = null;
     this.render();
   }
 
   render() {
     const { mode, wordsPerLine: wpl, chunks, margins } = this.opts;
+    const scrollTop = this.box?.scrollTop ?? 0;
     this.box = h('div', { class: `reader mode-${mode}${margins ? ' with-margins' : ''}` });
     this.lines = [];
     for (let s = 0; s < this.words.length; s += wpl) {
@@ -59,15 +68,29 @@ export class Reader {
     this.lines.at(-1)?.el.classList.add('last');
     this.i = Math.min(this.i, Math.max(0, this.lines.length - 1));
     this.container.replaceChildren(this.box);
+    this.box.scrollTop = scrollTop; // al reagrupar, el texto no debe saltar de sitio
     this.mark();
   }
 
   set(opts) {
     const wasRunning = this.running;
     this.pause();
+    opts = { ...this.pending, ...opts };
+    this.pending = null;
+    this.apply(opts);
+    if (wasRunning) this.play();
+  }
+
+  // Igual que set(), pero si está en marcha espera a que acabe la línea actual, para no
+  // reiniciarla a medias (p. ej. al pasar de fase o de nivel).
+  queue(opts) {
+    if (this.running) this.pending = { ...this.pending, ...opts };
+    else this.set(opts);
+  }
+
+  apply(opts) {
     Object.assign(this.opts, opts);
     if (['wordsPerLine', 'chunks', 'margins', 'mode'].some(k => k in opts)) this.render();
-    if (wasRunning) this.play();
   }
 
   play() {
@@ -115,6 +138,7 @@ export class Reader {
 
   step() {
     if (!this.running) return;
+    if (this.pending) { this.apply(this.pending); this.pending = null; }
     if (this.i >= this.lines.length) this.i = 0; // el texto se repite hasta que acabe el tiempo
     const line = this.mark();
     const dur = this.opts.secPerLine * 1000;

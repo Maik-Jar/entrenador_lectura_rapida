@@ -1,7 +1,7 @@
-// Plan de entrenamiento diario de 10 minutos: encadena los cuatro ejercicios.
+// Plan de entrenamiento diario de 12 minutos: encadena los cinco ejercicios.
 import { h, store, openModal } from './util.js';
 import { mountSchulte, storedSchulteControls } from './schulte.js';
-import { mountFonetico, mountSangria, mountEscoba, storedControls } from './exercises.js';
+import { mountFonetico, mountSangria, mountFijaciones, mountEscoba, storedControls } from './exercises.js';
 
 const STEPS = [
   {
@@ -18,6 +18,11 @@ const STEPS = [
     title: 'Sangría visual y puntero', min: 3, focus: 'Integración de visión periférica y ritmo.',
     mount: (el, done) => mountSangria(el, { embedded: true, minutes: 3, onDone: done }),
     controls: () => storedControls('sangria', { embedded: true }),
+  },
+  {
+    title: 'Reducción de fijaciones', min: 2, focus: 'Menos paradas por línea: hasta 2 o 3 fijaciones.',
+    mount: (el, done) => mountFijaciones(el, { embedded: true, minutes: 2, onDone: done }),
+    controls: () => storedControls('fijaciones', { embedded: true }),
   },
   {
     title: 'Sobrevuelo a alta velocidad', min: 2, focus: 'Reajuste del límite de velocidad mental (1 s/línea).',
@@ -96,7 +101,7 @@ export function mountRutina(root) {
   }
 
   root.append(
-    h('h1', {}, 'Rutina diaria · 10 minutos'),
+    h('h1', {}, 'Rutina diaria · 12 minutos'),
     h('p', { class: 'lead' }, 'Practícala una vez al día para obtener resultados sostenibles. Cada paso empieza solo y pasa al siguiente al terminar su tiempo.'),
     list,
     h('div', { class: 'toolbar' }, startBtn, skipBtn, stopBtn),
